@@ -18,6 +18,17 @@
 #include <sys/timerfd.h>
 #include <pthread.h>
 
+///////////////////////////////////////////////////////////////////////
+#define MOTOR_NUM 1
+#define THROTTLE_ID 0
+#define BRAKE_ID 1
+#define CENTER_LIDAR_ID 2
+#define LEFT_LIDAR_ID 3
+#define RIGHT_LIDAR_ID 4
+#define STEERING_ID 5
+#define GEAR_ID 6
+///////////////////////////////////////////////////////////////////////
+
 #define TXPDO_INDEX 0x1A04
 #define TX_CONTROL_WORD 0x6040, 0
 #define TX_TARGET_POSITION 0x607A, 0 // RW, int32#define
@@ -92,7 +103,6 @@
 
 extern int get_cfParam(char *name);
 extern void operateHA_controller();
-extern int get_rtParam_int(char *name, char *field);
 pthread_t ecat_cyclic_thread;
 
 extern void sendDebug(char* ret_msg);
@@ -190,24 +200,24 @@ int *control_cnt;
 int *tpos_timestamp;
 void mallocArray()
 {
-	control_cnt = (int *)malloc(sizeof(int) * get_rtParam_int("ECAT.num_motors", "value"));
-	for (int i = 0; i < get_rtParam_int("ECAT.num_motors", "value"); i++)
+	control_cnt = (int *)malloc(sizeof(int) * MOTOR_NUM);
+	for (int i = 0; i < MOTOR_NUM; i++)
 		control_cnt[i] = 3;
-	tpos_timestamp = (int *)malloc(sizeof(int) * get_rtParam_int("ECAT.num_motors", "value"));
-	for (int i = 0; i < get_rtParam_int("ECAT.num_motors", "value"); i++)
+	tpos_timestamp = (int *)malloc(sizeof(int) * MOTOR_NUM);
+	for (int i = 0; i < MOTOR_NUM; i++)
 		tpos_timestamp[i] = -1;
-	motor_info = (Motor_info *)malloc(sizeof(Motor_info) * get_rtParam_int("ECAT.num_motors", "value"));
-	master_info.sc_epos = (ec_slave_config_t **)malloc(sizeof(ec_slave_config_t *) * get_rtParam_int("ECAT.num_motors", "value"));
-	master_info.slave_state = (ec_slave_config_state_t *)malloc(sizeof(ec_slave_config_state_t) * get_rtParam_int("ECAT.num_motors", "value"));
-	master_info.domain = (ec_domain_t **)malloc(sizeof(ec_domain_t *) * get_rtParam_int("ECAT.num_motors", "value"));
-	master_info.domain_state = (ec_domain_state_t *)malloc(sizeof(ec_domain_state_t) * get_rtParam_int("ECAT.num_motors", "value"));
-	master_info.domain_pd = (uint8_t **)malloc(sizeof(uint8_t *) * get_rtParam_int("ECAT.num_motors", "value"));
+	motor_info = (Motor_info *)malloc(sizeof(Motor_info) * MOTOR_NUM);
+	master_info.sc_epos = (ec_slave_config_t **)malloc(sizeof(ec_slave_config_t *) * MOTOR_NUM);
+	master_info.slave_state = (ec_slave_config_state_t *)malloc(sizeof(ec_slave_config_state_t) * MOTOR_NUM);
+	master_info.domain = (ec_domain_t **)malloc(sizeof(ec_domain_t *) * MOTOR_NUM);
+	master_info.domain_state = (ec_domain_state_t *)malloc(sizeof(ec_domain_state_t) * MOTOR_NUM);
+	master_info.domain_pd = (uint8_t **)malloc(sizeof(uint8_t *) * MOTOR_NUM);
 }
 void initSlaveInfo() //using in EcatMgr.cpp
 {
 	int idx;
 
-	for (idx = 0; idx < get_rtParam_int("ECAT.num_motors", "value"); ++idx)
+	for (idx = 0; idx < MOTOR_NUM; ++idx)
 	{
 		motor_info[idx].no = idx;
 		motor_info[idx].target_pos = 0;
@@ -245,7 +255,7 @@ int checkDomainState()
 {
 	int i = 0;
 	int ret_val = 0;
-	for (i = 0; i < get_rtParam_int("ECAT.num_motors", "value"); i++)
+	for (i = 0; i < MOTOR_NUM; i++)
 	{
 		ec_domain_state_t ds;
 		ecrt_domain_state(master_info.domain[i], &ds);
@@ -289,7 +299,7 @@ void checkMasterState(void)
 void checkSlaveStates()
 {
 	int i = 0;
-	for (i = 0; i < get_rtParam_int("ECAT.num_motors", "value"); i++)
+	for (i = 0; i < MOTOR_NUM; i++)
 	{
 		ec_slave_config_state_t s;
 
@@ -407,7 +417,7 @@ int downloadMasterCommand()
 	unsigned long maxFlowingError = 2600000;
 
 	int i = 0;
-	for (i = 0; i < get_rtParam_int("ECAT.num_motors", "value"); i++)
+	for (i = 0; i < MOTOR_NUM; i++)
 	{
 		if ((errorCode = ecrt_master_sdo_download(master_info.master, i, 0x6065, 0x00, (unsigned char *)&maxFlowingError, 4, &abortCode)) < 0)
 		{
@@ -474,40 +484,40 @@ unsigned short get_slave_status(unsigned int slave_no)
 }
 void update_tpos_timestamp(int slave_no)
 {
-	if (slave_no == get_cfParam("ECAT.motor_id_throttle"))
+	if (slave_no == THROTTLE_ID)
     {
-			tpos_timestamp[slave_no] = get_rtParam_int("Throttle.target_position", "timestamp");
+			tpos_timestamp[slave_no] = 0;
 			return ;
     }
-    else if (slave_no == get_cfParam("ECAT.motor_id_brake"))
+    else if (slave_no == BRAKE_ID)
     {
-			tpos_timestamp[slave_no] = get_rtParam_int("Brake.target_position", "timestamp");
+			tpos_timestamp[slave_no] = 0;
 			return ;
     }
     
-    else if (slave_no == get_cfParam("ECAT.motor_id_lidar_center"))
+    else if (slave_no == CENTER_LIDAR_ID)
     {
-			tpos_timestamp[slave_no] = get_rtParam_int("Lidar.center_target_position", "timestamp");
+			tpos_timestamp[slave_no] = 0;
 			return ;
     }
-    else if (slave_no == get_cfParam("ECAT.motor_id_lidar_left"))
+    else if (slave_no == LEFT_LIDAR_ID)
     {
-			tpos_timestamp[slave_no] = get_rtParam_int("Lidar.left_target_position", "timestamp");
+			tpos_timestamp[slave_no] = 0;
 			return ;
     }
-    else if (slave_no == get_cfParam("ECAT.motor_id_lidar_right"))
+    else if (slave_no == RIGHT_LIDAR_ID)
     {
-			tpos_timestamp[slave_no] = get_rtParam_int("Lidar.right_target_position", "timestamp");
+			tpos_timestamp[slave_no] = 0;
 			return ;
     }
-    else if (slave_no == get_cfParam("ECAT.motor_id_steer"))
+    else if (slave_no == STEERING_ID)
     {
-			tpos_timestamp[slave_no] = get_rtParam_int("Steerwheel.target_position", "timestamp");
+			tpos_timestamp[slave_no] = 0;
 			return ;
     }
-    else if (slave_no == get_cfParam("ECAT.motor_id_gearstick"))
+    else if (slave_no == GEAR_ID)
     {
-			tpos_timestamp[slave_no] = get_rtParam_int("Gearstick.target_position", "timestamp");
+			tpos_timestamp[slave_no] = 0;
 			return ;
     }
 
@@ -515,52 +525,52 @@ void update_tpos_timestamp(int slave_no)
 }
 int is_tpos_timestamp_updated(int slave_no)
 {
-	if (slave_no == get_cfParam("ECAT.motor_id_throttle"))
+	if (slave_no == THROTTLE_ID)
     {
-        if(tpos_timestamp[slave_no] != get_rtParam_int("Throttle.target_position", "timestamp"))
+        if(tpos_timestamp[slave_no] != 0)
 		{
 			return 1;
 		}
     }
-    else if (slave_no == get_cfParam("ECAT.motor_id_brake"))
+    else if (slave_no == BRAKE_ID)
     {
-        if(tpos_timestamp[slave_no] != get_rtParam_int("Brake.target_position", "timestamp"))
+        if(tpos_timestamp[slave_no] != 0)
 		{
 			return 1;
 		}
     }
     
-    else if (slave_no == get_cfParam("ECAT.motor_id_lidar_center"))
+    else if (slave_no == CENTER_LIDAR_ID)
     {
-        if(tpos_timestamp[slave_no] != get_rtParam_int("Lidar.center_target_position", "timestamp"))
+        if(tpos_timestamp[slave_no] != 0)
 		{
 			return 1;
 		}
     }
-    else if (slave_no == get_cfParam("ECAT.motor_id_lidar_left"))
+    else if (slave_no == LEFT_LIDAR_ID)
     {
-        if(tpos_timestamp[slave_no] != get_rtParam_int("Lidar.left_target_position", "timestamp"))
+        if(tpos_timestamp[slave_no] != 0)
 		{
 			return 1;
 		}
     }
-    else if (slave_no == get_cfParam("ECAT.motor_id_lidar_right"))
+    else if (slave_no == RIGHT_LIDAR_ID)
     {
-        if(tpos_timestamp[slave_no] != get_rtParam_int("Lidar.right_target_position", "timestamp"))
+        if(tpos_timestamp[slave_no] != 0)
 		{
 			return 1;
 		}
     }
-    else if (slave_no == get_cfParam("ECAT.motor_id_steer"))
+    else if (slave_no == STEERING_ID)
     {
-        if(tpos_timestamp[slave_no] != get_rtParam_int("Steerwheel.target_position", "timestamp"))
+        if(tpos_timestamp[slave_no] != 0)
 		{
 			return 1;
 		}
     }
-    else if (slave_no == get_cfParam("ECAT.motor_id_gearstick"))
+    else if (slave_no == GEAR_ID)
     {
-        if(tpos_timestamp[slave_no] != get_rtParam_int("Gearstick.target_position", "timestamp"))
+        if(tpos_timestamp[slave_no] != 0)
 		{
 			return 1;
 		}
@@ -573,7 +583,7 @@ int is_ecat_ready()
 	int i = 0;
 	int result = -1;
 	unsigned short statusWord;
-	for (i = 0; i < get_rtParam_int("ECAT.num_motors", "value"); i++)
+	for (i = 0; i < MOTOR_NUM; i++)
 	{
 		statusWord = get_slave_status(i);
 		if((statusWord & 0x6F) != 0x27)
@@ -645,7 +655,7 @@ void preprocessingECAT() //using in EcatMgr.cpp
 
 	// receive process data
 	ecrt_master_receive(master_info.master);
-	for (i = 0; i < get_rtParam_int("ECAT.num_motors", "value"); i++)
+	for (i = 0; i < MOTOR_NUM; i++)
 	{
 		ecrt_domain_process(master_info.domain[i]);
 	}
@@ -661,7 +671,7 @@ void preprocessingECAT() //using in EcatMgr.cpp
 		counter = FREQUENCY;
 		if (checkDomainState() != 0)
 		{
-			for (i = 0; i < get_rtParam_int("ECAT.num_motors", "value"); i++)
+			for (i = 0; i < MOTOR_NUM; i++)
 			{
 				get_slave_status(i);
 
@@ -674,7 +684,7 @@ void preprocessingECAT() //using in EcatMgr.cpp
 		}
 	}
 
-	for (i = 0; i < get_rtParam_int("ECAT.num_motors", "value"); i++)
+	for (i = 0; i < MOTOR_NUM; i++)
 	{
 		get_slave_status(i);
 	}
@@ -701,7 +711,7 @@ void postprocessingECAT() //using in EcatMgr.cpp
 		ecrt_master_sync_reference_clock(master_info.master);
 	}
 	ecrt_master_sync_slave_clocks(master_info.master); //kindly see ecrt.h for function definition
-	for (i = 0; i < get_rtParam_int("ECAT.num_motors", "value"); i++)
+	for (i = 0; i < MOTOR_NUM; i++)
 	{
 		ecrt_domain_queue(master_info.domain[i]);
 	}
@@ -882,14 +892,14 @@ int ecatUp()
 
 	if (!master_info.master)
 		return -1;
-	for (i = 0; i < get_rtParam_int("ECAT.num_motors", "value"); i++)
+	for (i = 0; i < MOTOR_NUM; i++)
 	{
 		master_info.domain[i] = ecrt_master_create_domain(master_info.master);
 		if (!master_info.domain[i])
 			return -1;
 	}
 
-	for (i = 0; i < get_rtParam_int("ECAT.num_motors", "value"); i++)
+	for (i = 0; i < MOTOR_NUM; i++)
 	{
 		if (!(master_info.sc_epos[i] = ecrt_master_slave_config(master_info.master, 0, i, MAXON_EPOS3)))
 		{
@@ -902,7 +912,7 @@ int ecatUp()
 		return -1;
 	printf("Configuring PDOs...\n");
 	sendDebug("Configuring PDOs...\n");
-	for (i = 0; i < get_rtParam_int("ECAT.num_motors", "value"); i++)
+	for (i = 0; i < MOTOR_NUM; i++)
 	{
 		if (ecrt_slave_config_pdos(master_info.sc_epos[i], EC_END, epos3_syncs))
 		{
@@ -913,7 +923,7 @@ int ecatUp()
 
 	printf("configureing PDO is completed!\n");
 	sendDebug("configureing PDO is completed!\n");
-	if (get_rtParam_int("ECAT.num_motors", "value") > 0)
+	if (MOTOR_NUM > 0)
 	{
 		if (ecrt_domain_reg_pdo_entry_list(master_info.domain[0], throttle_domain_regs))
 		{
@@ -921,7 +931,7 @@ int ecatUp()
 			return -1;
 		}
 	}
-	if (get_rtParam_int("ECAT.num_motors", "value") > 1)
+	if (MOTOR_NUM > 1)
 	{
 		if (ecrt_domain_reg_pdo_entry_list(master_info.domain[1], brake_domain_regs))
 		{
@@ -930,7 +940,7 @@ int ecatUp()
 		}
 	}
 
-	if (get_rtParam_int("ECAT.num_motors", "value") > 2)
+	if (MOTOR_NUM > 2)
 	{
 		if (ecrt_domain_reg_pdo_entry_list(master_info.domain[2], clidar_domain_regs))
 		{
@@ -938,7 +948,7 @@ int ecatUp()
 			return -1;
 		}
 	}
-	if (get_rtParam_int("ECAT.num_motors", "value") > 3)
+	if (MOTOR_NUM > 3)
 	{
 		if (ecrt_domain_reg_pdo_entry_list(master_info.domain[3], llidar_domain_regs))
 		{
@@ -946,7 +956,7 @@ int ecatUp()
 			return -1;
 		}
 	}
-	if (get_rtParam_int("ECAT.num_motors", "value") > 4)
+	if (MOTOR_NUM > 4)
 	{
 		if (ecrt_domain_reg_pdo_entry_list(master_info.domain[4], rlidar_domain_regs))
 		{
@@ -954,7 +964,7 @@ int ecatUp()
 			return -1;
 		}
 	}
-	if (get_rtParam_int("ECAT.num_motors", "value") > 5)
+	if (MOTOR_NUM > 5)
 	{
 		if (ecrt_domain_reg_pdo_entry_list(master_info.domain[5], wheel_domain_regs))
 		{
@@ -962,7 +972,7 @@ int ecatUp()
 			return -1;
 		}
 	}
-	if (get_rtParam_int("ECAT.num_motors", "value") > 6)
+	if (MOTOR_NUM > 6)
 	{
 		if (ecrt_domain_reg_pdo_entry_list(master_info.domain[6], gearstick_domain_regs))
 		{
@@ -972,7 +982,7 @@ int ecatUp()
 	}
 
 	// configure SYNC signals for this slave
-	for (i = 0; i < get_rtParam_int("ECAT.num_motors", "value"); i++)
+	for (i = 0; i < MOTOR_NUM; i++)
 	{
 		ecrt_slave_config_dc(master_info.sc_epos[i], 0x0300, 10000000, 4400000, 0, 0);
 	}
@@ -981,14 +991,14 @@ int ecatUp()
 
 	if (ecrt_master_activate(master_info.master))
 		return -1;
-	for (i = 0; i < get_rtParam_int("ECAT.num_motors", "value"); i++)
+	for (i = 0; i < MOTOR_NUM; i++)
 	{
 		if (!(master_info.domain_pd[i] = ecrt_domain_data(master_info.domain[i])))
 		{
 			return -1;
 		}
 	}
-	for (i = 0; i < get_rtParam_int("ECAT.num_motors", "value"); i++)
+	for (i = 0; i < MOTOR_NUM; i++)
 	{
 		if (i == get_cfParam("ECAT.motor_id_brake"))
 		{
@@ -1034,7 +1044,7 @@ void ecatCyclic(void *)
 	timerfd = initTimerfd(10);
 	while (1)
 	{
-		for (i = 0; i < get_rtParam_int("ECAT.num_motors", "value"); i++)
+		for (i = 0; i < MOTOR_NUM; i++)
 		{
 			preprocessingECAT();
             /*if(i==0 || i==1)
@@ -1047,7 +1057,7 @@ void ecatCyclic(void *)
 			get_slave_physical_act_pos(i);
 			operateHA_controller();
 			postprocessingECAT();
-			if(get_rtParam_int("OBD.publish_to_agent","value") == 1 )
+			if(MOTOR_NUM == 1 )
 			{
 				sendOdom(get_cur_steer_angle(), 3);
 			} 
