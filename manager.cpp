@@ -15,8 +15,6 @@ extern void add_rtParam(pair<string, string> p, char *name, char *nickname,
 extern int set_rtParam(char *name, char *field, double val);
 extern int paramHandler(char *arg1, double arg2);
 extern int EthercatCyclicHandler(char *arg1, double arg2);
-extern int get_cfParam(char *name);
-extern int get_rtParam_int(char *name, char *field);
 
 map<string, double> Ecat_State;
 pair<string, string> Ecat_State_name;
@@ -36,7 +34,7 @@ enum
 
 void initEcatModule()
 {
-    int init_num_motors = get_cfParam("ECAT.num_motors");
+    int init_num_motors = 1;
     initHA_ecat();
     add_rtParam(Obd_Pub_2_Agent_name, "OBD.publish_to_agent","OBD.pub2agent",Obd_Pub_2_Agent ,0, 0, 0, 2);
     add_rtParam(Ecat_State_name, "ECAT.state", "ECAT.state", Ecat_State, 0, 0, 0, 2);
