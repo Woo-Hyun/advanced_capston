@@ -1,4 +1,9 @@
 # advanced_capston
-repository for advanced capstone design lecture.
+4학년 고급 캡스톤 디자인을 위한 저장소입니다.
 
-you cannot build without installed EtherCAT.
+아직 완성되어 작동하는 코드는 아니며, 개발 중에 있는 코드입니다.
+
+모터를 작동시키며, 작동된 모터에서 사용하는 순간 전류를 바탕으로 
+전력을 측정할 수 있습니다. (아직 개발 중에 있음.)
+
+EtherCAT이 코드를 빌드하는데 필수적입니다.
